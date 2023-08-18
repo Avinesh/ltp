@@ -1,185 +1,77 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright (c) International Business Machines  Corp., 2001
- *
- * This program is free software;  you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY;  without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See
- * the GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program;  if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
+ *  07/2001 Ported by Wayne Boyer
+ * Copyright (c) 2023 SUSE LLC Avinesh Kumar <avinesh.kumar@suse.com>
  */
 
-/*
- * Test Description:
- *  Call mmap() to map a file creating a mapped region with read/exec access
- *  under the following conditions -
- *	- The prot parameter is set to PROT_READ|PROT_EXEC
- *	- The file descriptor is open for read
- *	- The file being mapped has read and execute permission bit set.
- *	- The minimum file permissions should be 0555.
+/*\
+ * [Description]
  *
- *  The call should succeed to map the file creating mapped memory with the
- *  required attributes.
- *
- * Expected Result:
- *  mmap() should succeed returning the address of the mapped region,
- *  and the mapped region should contain the contents of the mapped file.
- *
- * HISTORY
- *	07/2001 Ported by Wayne Boyer
+ * Verify that, mmap() call with 'PROT_READ | PROT_EXEC; and file descriptor
+ * which is open for read only and has read and execute permission bits set,
+ * succeeds to map a file creating mapped memory with read/exec access.
  */
 
-#include <stdio.h>
 #include <stdlib.h>
-#include <sys/types.h>
-#include <errno.h>
-#include <unistd.h>
-#include <fcntl.h>
-#include <string.h>
-#include <signal.h>
-#include <sys/stat.h>
-#include <sys/mman.h>
+#include "tst_test.h"
 
-#include "test.h"
-
-#define TEMPFILE	"mmapfile"
-
-char *TCID = "mmap04";
-int TST_TOTAL = 1;
-
+#define TEMPFILE "mmapfile"
 static size_t page_sz;
+static int fd;
 static char *addr;
 static char *dummy;
-static int fildes;
-
-static void setup(void);
-static void cleanup(void);
-
-int main(int ac, char **av)
-{
-	int lc;
-
-	tst_parse_opts(ac, av, NULL, NULL);
-
-	setup();
-
-	for (lc = 0; TEST_LOOPING(lc); lc++) {
-
-		tst_count = 0;
-
-		/*
-		 * Call mmap to map the temporary file 'TEMPFILE'
-		 * with read and execute access.
-		 */
-		errno = 0;
-		addr = mmap(0, page_sz, PROT_READ | PROT_EXEC,
-			    MAP_FILE | MAP_SHARED, fildes, 0);
-
-		/* Check for the return value of mmap() */
-		if (addr == MAP_FAILED) {
-			tst_resm(TFAIL | TERRNO, "mmap of %s failed", TEMPFILE);
-			continue;
-		}
-
-		/*
-		 * Read the file contents into the dummy
-		 * variable.
-		 */
-		if (read(fildes, dummy, page_sz) < 0) {
-			tst_brkm(TFAIL, cleanup, "reading %s failed",
-				 TEMPFILE);
-		}
-
-		/*
-		 * Check whether the mapped memory region
-		 * has the file contents.
-		 */
-		if (memcmp(dummy, addr, page_sz)) {
-			tst_resm(TFAIL,
-				 "mapped memory region contains invalid "
-				 "data");
-		} else {
-			tst_resm(TPASS,
-				 "Functionality of mmap() successful");
-		}
-
-		/* Clean up things in case we are looping. */
-		/* Unmap the mapped memory */
-		if (munmap(addr, page_sz) != 0) {
-			tst_brkm(TFAIL, cleanup, "munmapping failed");
-		}
-	}
-
-	cleanup();
-	tst_exit();
-}
 
 static void setup(void)
 {
-	char *tst_buff;
-
-	tst_sig(NOFORK, DEF_HANDLER, cleanup);
-
-	TEST_PAUSE;
+	char *tst_buf;
 
 	page_sz = getpagesize();
+	tst_buf = SAFE_CALLOC(page_sz, sizeof(char));
+	memset(tst_buf, 'A', page_sz);
 
-	if ((tst_buff = calloc(page_sz, sizeof(char))) == NULL) {
-		tst_brkm(TFAIL, NULL, "calloc failed (tst_buff)");
+	fd = SAFE_OPEN(TEMPFILE, O_RDWR | O_CREAT, 0666);
+	SAFE_WRITE(SAFE_WRITE_ALL, fd, tst_buf, page_sz);
+	free(tst_buf);
+
+	SAFE_FCHMOD(fd, 0555);
+	SAFE_CLOSE(fd);
+
+	fd = SAFE_OPEN(TEMPFILE, O_RDONLY);
+	dummy = SAFE_CALLOC(page_sz, sizeof(char));
+}
+
+static void run(void)
+{
+	addr = mmap(0, page_sz, PROT_READ | PROT_EXEC, MAP_FILE | MAP_SHARED, fd, 0);
+
+	if (addr == MAP_FAILED) {
+		tst_res(TFAIL | TERRNO, "mmap() of %s failed", TEMPFILE);
+		return;
 	}
 
-	/* Fill the test buffer with the known data */
-	memset(tst_buff, 'A', page_sz);
+	SAFE_READ(1, fd, dummy, page_sz);
+	SAFE_LSEEK(fd, 0, SEEK_SET);
 
-	tst_tmpdir();
+	if (memcmp(dummy, addr, page_sz) == 0)
+		tst_res(TPASS, "mmap() functionality successful");
+	else
+		tst_res(TFAIL, "mapped memory region contains invalid data");
 
-	/* Creat a temporary file used for mapping */
-	if ((fildes = open(TEMPFILE, O_WRONLY | O_CREAT, 0666)) < 0) {
-		free(tst_buff);
-		tst_brkm(TFAIL, cleanup, "opening %s failed", TEMPFILE);
-	}
-
-	/* Write test buffer contents into temporary file */
-	if (write(fildes, tst_buff, page_sz) < (ssize_t)page_sz) {
-		free(tst_buff);
-		tst_brkm(TFAIL, cleanup, "writing to %s failed", TEMPFILE);
-	}
-
-	/* Free the memory allocated for test buffer */
-	free(tst_buff);
-
-	/* Make sure proper permissions set on file */
-	if (fchmod(fildes, 0555) < 0) {
-		tst_brkm(TFAIL, cleanup, "fchmod of %s failed", TEMPFILE);
-	}
-
-	/* Close the temporary file opened for write */
-	if (close(fildes) < 0) {
-		tst_brkm(TFAIL, cleanup, "closing %s failed", TEMPFILE);
-	}
-
-	/* Allocate and initialize dummy string of system page size bytes */
-	if ((dummy = calloc(page_sz, sizeof(char))) == NULL) {
-		tst_brkm(TFAIL, cleanup, "calloc failed (dummy)");
-	}
-
-	/* Open the temporary file again for reading */
-	if ((fildes = open(TEMPFILE, O_RDONLY)) < 0) {
-		tst_brkm(TFAIL, cleanup,
-			 "opening %s read-only failed", TEMPFILE);
-	}
+	SAFE_MUNMAP(addr, page_sz);
 }
 
 static void cleanup(void)
 {
-	close(fildes);
-	free(dummy);
-	tst_rmdir();
+	if (fd > 0)
+		SAFE_CLOSE(fd);
+	if (dummy)
+		free(dummy);
 }
+
+static struct tst_test test = {
+	.setup = setup,
+	.cleanup = cleanup,
+	.test_all = run,
+	.needs_tmpdir = 1
+};
