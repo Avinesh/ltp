@@ -43,12 +43,12 @@ static void setup(void)
 {
 	int attr;
 
-	fd_immutable = SAFE_OPEN(TEST_EPERM_IMMUTABLE, O_CREAT, 0600);
+	fd_immutable = SAFE_OPEN(TEST_EPERM_IMMUTABLE, O_RDWR | O_CREAT, 0600);
 	SAFE_IOCTL(fd_immutable, FS_IOC_GETFLAGS, &attr);
 	attr |= FS_IMMUTABLE_FL;
 	SAFE_IOCTL(fd_immutable, FS_IOC_SETFLAGS, &attr);
 
-	fd_append_only = SAFE_OPEN(TEST_EPERM_APPEND_ONLY, O_CREAT, 0600);
+	fd_append_only = SAFE_OPEN(TEST_EPERM_APPEND_ONLY, O_RDWR | O_CREAT, 0600);
 	SAFE_IOCTL(fd_append_only, FS_IOC_GETFLAGS, &attr);
 	attr |= FS_APPEND_FL;
 	SAFE_IOCTL(fd_append_only, FS_IOC_SETFLAGS, &attr);
@@ -79,7 +79,7 @@ static void verify_unlink(unsigned int i)
 	/* If unlink() succeeded unexpectedly, test file should be restored. */
 	if (!TST_RET) {
 		if (tc->fd) {
-			*(tc->fd) = SAFE_OPEN(tc->filename, O_CREAT, 0600);
+			*(tc->fd) = SAFE_OPEN(tc->filename, O_RDWR | O_CREAT, 0600);
 			if (tc->flag) {
 				SAFE_IOCTL(*(tc->fd), FS_IOC_GETFLAGS, &attr);
 				attr |= tc->flag;
