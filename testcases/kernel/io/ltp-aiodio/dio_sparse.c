@@ -35,7 +35,7 @@ static char *str_offset;
 
 static int numchildren = 16;
 static long long writesize = 1024;
-static long long filesize = 100 * 1024 * 1024;
+static long long filesize = 50 * 1024 * 1024;
 static long long offset = 0;
 static long long alignment;
 
