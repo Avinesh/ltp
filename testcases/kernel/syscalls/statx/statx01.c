@@ -66,8 +66,17 @@ static void test_mnt_id(struct statx *buf)
 	file = SAFE_FOPEN("/proc/self/mountinfo", "r");
 
 	while (fgets(line, sizeof(line), file)) {
-		if (sscanf(line, "%"SCNu64" %*d %d:%d", &mnt_id, &line_mjr, &line_mnr) != 3)
+		int countM = sscanf(line, "%"SCNu64" %*d %d:%d", &mnt_id, &line_mjr, &line_mnr);
+		// printf("countM = %d\n", countM);
+		tst_res(TINFO, "countM = %d", countM);
+		if ( countM != 3){
+			// printf("line: %s\n", line);
+			tst_res(TINFO, "line: %s", line);
 			continue;
+		}
+
+		// printf("line: %s\n", line);
+		tst_res(TINFO, "line: %s", line);
 
 		if (line_mjr == buf->stx_dev_major && line_mnr == buf->stx_dev_minor) {
 			if (buf->stx_mnt_id == mnt_id) {
