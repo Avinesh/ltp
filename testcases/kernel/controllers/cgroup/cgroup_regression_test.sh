@@ -93,7 +93,7 @@ test1()
 	cgroup_regression_fork_processes &
 	sleep 1
 
-	mount -t cgroup -o none,name=foo cgroup cgroup/
+	mount -t cgroup -o none,name=foo1 cgroup cgroup/
 	if [ $? -ne 0 ]; then
 		tst_res TFAIL "failed to mount cgroup filesystem"
 		kill -TERM $!
@@ -118,7 +118,7 @@ test2()
 	local val1
 	local val2
 
-	mount -t cgroup -o none,name=foo cgroup cgroup/
+	mount -t cgroup -o none,name=foo2 cgroup cgroup/
 	if [ $? -ne 0 ]; then
 		tst_res TFAIL "Failed to mount cgroup filesystem"
 		return
@@ -204,7 +204,7 @@ test4()
 		return
 	fi
 
-	mount -t cgroup -o none,name=foo cgroup cgroup/
+	mount -t cgroup -o none,name=foo4 cgroup cgroup/
 	mkdir cgroup/0
 	rmdir cgroup/0
 	tst_umount $PWD/cgroup
@@ -309,7 +309,7 @@ test_7_2()
 {
 	local subsys=$1
 
-	mount -t cgroup -o none,name=foo cgroup cgroup/
+	mount -t cgroup -o none,name=foo72 cgroup cgroup/
 	if [ $? -ne 0 ]; then
 		tst_res TFAIL "failed to mount cgroup"
 		return
@@ -370,7 +370,7 @@ test7()
 #---------------------------------------------------------------------------
 test8()
 {
-	mount -t cgroup -o none,name=foo cgroup cgroup/
+	mount -t cgroup -o none,name=foo8 cgroup cgroup/
 	if [ $? -ne 0 ]; then
 		tst_res TFAIL "failed to mount cgroup filesystem"
 		return
