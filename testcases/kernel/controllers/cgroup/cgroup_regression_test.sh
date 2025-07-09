@@ -103,7 +103,7 @@ test1()
 
 	kill -TERM $!
 	wait $! 2>/dev/null
-	umount cgroup/
+	tst_umount $PWD/cgroup
 	check_kernel_bug
 }
 
@@ -263,7 +263,7 @@ test6()
 	wait $pid1 2>/dev/null
 	wait $pid2 2>/dev/null
 
-	umount cgroup/ 2> /dev/null
+	tst_umount $PWD/cgroup
 	check_kernel_bug
 }
 
@@ -299,7 +299,7 @@ test_7_1()
 		mount -t cgroup -o remount xxx cgroup/ 2> /dev/null
 		kill -TERM $!
 		wait $! 2>/dev/null
-		umount cgroup/
+		tst_umount $PWD/cgroup
 	fi
 
 	cgroup_cleanup
@@ -324,7 +324,7 @@ test_7_2()
 	mount -t cgroup -o remount,$subsys xxx cgroup/ 2> /dev/null
 	kill -TERM $!
 	wait $! 2>/dev/null
-	umount cgroup/
+	tst_umount $PWD/cgroup
 
 	grep -q -w "cpu" /proc/cgroups
 	if [ $? -ne 0 -o ! -e /proc/sched_debug ]; then
@@ -380,7 +380,7 @@ test8()
 		tst_res TFAIL "should have failed to get cgroupstat of tasks file"
 	fi
 
-	umount cgroup/
+	tst_umount $PWD/cgroup
 	check_kernel_bug
 }
 
