@@ -103,7 +103,7 @@ test1()
 
 	kill -TERM $!
 	wait $! 2>/dev/null
-	umount cgroup/
+	umount -f cgroup/
 	check_kernel_bug
 }
 
