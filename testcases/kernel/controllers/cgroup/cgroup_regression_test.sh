@@ -45,6 +45,7 @@ check_kernel_bug()
 	local new_warning=`dmesg | grep -c "^WARNING"`
 	local new_lockdep=`dmesg | grep -c "possible recursive locking detected"`
 
+    sync
 	[ "$id" ] && ok_msg="$ok_msg for test $i"
 
 	# no kernel bug is detected
