@@ -104,7 +104,8 @@ test1()
 	kill -TERM $!
 	wait $! 2>/dev/null
 	umount cgroup/
-	check_kernel_bug
+    sleep 2
+    check_kernel_bug
 }
 
 #---------------------------------------------------------------------------
