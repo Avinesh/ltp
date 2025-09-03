@@ -115,8 +115,8 @@ void referee(int game_length)
 	now = start;
 
 	/* Start the game! */
-	tst_atomic_store(0, &the_ball);
 	pthread_barrier_wait(&start_barrier);
+	tst_atomic_store(0, &the_ball);
 	atrace_marker_write("sched_football", "Game_started!");
 
 	/* Watch the game */
@@ -125,13 +125,13 @@ void referee(int game_length)
 		gettimeofday(&now, NULL);
 	}
 
-	/* Stop the game! */
-	tst_atomic_store(1, &game_over);
-	atrace_marker_write("sched_football", "Game_Over!");
-
 	/* Blow the whistle */
 	final_ball = tst_atomic_load(&the_ball);
 	tst_res(TINFO, "Final ball position: %d", final_ball);
+
+	/* Stop the game! */
+	tst_atomic_store(1, &game_over);
+	atrace_marker_write("sched_football", "Game_Over!");
 
 	TST_EXP_EXPR(final_ball == 0);
 }
