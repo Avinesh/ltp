@@ -21,9 +21,6 @@
  * lib/newlib_tests/shell/tst_{all_filesystems_skip,skip_filesystems}.sh
  */
 static const char *const fs_type_whitelist[] = {
-	"ext2",
-	"ext3",
-	"ext4",
 	"xfs",
 	"btrfs",
 	"bcachefs",
@@ -31,6 +28,9 @@ static const char *const fs_type_whitelist[] = {
 	"exfat",
 	"ntfs",
 	"tmpfs",
+	"ext2",
+	"ext3",
+	"ext4",
 	NULL
 };
 
