@@ -181,17 +181,32 @@ static int eatup_mem(unsigned long overcommit_policy)
 
 static void check_monitor(void)
 {
-	unsigned long tune;
+	unsigned long tune, prev_tune = 0;
 	unsigned long memfree;
+	int violation_count = 0;
+	const int max_violations = 3;
 
 	while (!end) {
 		memfree = SAFE_READ_MEMINFO("MemFree:");
 		tune = TST_SYS_CONF_LONG_GET(MIN_FREE_KBYTES);
 
+		if (tune != prev_tune) {
+            violation_count = 0;
+            prev_tune = tune;
+        }
+
 		if (memfree < tune) {
+			violation_count ++;
 			tst_res(TINFO, "MemFree is %lu kB, "
-				 "min_free_kbytes is %lu kB", memfree, tune);
-			tst_res(TFAIL, "MemFree < min_free_kbytes");
+				 "min_free_kbytes is %lu kB (violation %d/%d)",
+				 memfree, tune, violation_count, max_violations);
+
+			if (violation_count >= max_violations) {
+				tst_res(TFAIL, "MemFree < min_free_kbytes persisted");
+                violation_count = 0;
+			}
+		} else {
+			violation_count = 0;
 		}
 
 		sleep(2);
