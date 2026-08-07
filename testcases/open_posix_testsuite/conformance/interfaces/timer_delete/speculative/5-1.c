@@ -13,15 +13,34 @@
 #include <time.h>
 #include <stdio.h>
 #include <errno.h>
+#include <signal.h>
+#include <unistd.h>
 #include "posixtest.h"
 
 #define BOGUSTIMERID 99999
+
+/*
+ * when timerid argument does not correspond to a timer ID returned by
+ * timer_create(), POSIX recommends EINVAL, but SIGSEGV is also
+ * valid outcome.
+ */
+static void sigsegv_handler(int signum PTS_ATTRIBUTE_UNUSED)
+{
+	PTS_WRITE_MSG("Got SIGSEGV when calling timer_delete() with an invalid timer ID\n");
+	PTS_WRITE_MSG("Test PASSED\n");
+	_exit(PTS_PASS);
+}
 
 int test_main(int argc PTS_ATTRIBUTE_UNUSED, char **argv PTS_ATTRIBUTE_UNUSED)
 {
 	timer_t tid;
 	int tval = BOGUSTIMERID;
+	struct sigaction sa = { .sa_handler = sigsegv_handler };
+
 	tid = (timer_t) & tval;
+
+	sigfillset(&sa.sa_mask);
+	sigaction(SIGSEGV, &sa, NULL);
 
 	if (timer_delete(tid) == -1) {
 		if (errno == EINVAL) {
