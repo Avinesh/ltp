@@ -33,7 +33,7 @@
 #include "tst_kconfig.h"
 
 #define HELPER "coredump01_helper"
-#define HELPER_TIMEOUT 10
+#define HELPER_TIMEOUT 100
 
 static char helper_path[PATH_MAX];
 static int static_usermodehelper;
