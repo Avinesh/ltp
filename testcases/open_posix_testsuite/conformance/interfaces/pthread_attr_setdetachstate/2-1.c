@@ -14,19 +14,29 @@
  * 1.  Initialize a pthread_attr_t object using pthread_attr_init().
  * 2.  Using pthread_attr_setdetachstate(), set the detachstate to
  *     PTHREAD_CREATE_DETACHED.
- * 3.  Create a thread with this attribute.
+ * 3.  Create a thread with this attribute. The thread blocks until released.
  * 4.  Call pthread_detach() and pthread_join() on this thread, it should give
  *     an error.
+ * 5.  Release the thread.
  *
+ * The thread must still be running while pthread_join() and pthread_detach()
+ * are called. Once a detached thread has exited its ID is no longer valid, the
+ * behavior of both calls is then undefined.
  */
 
 #include <pthread.h>
+#include <semaphore.h>
 #include <stdio.h>
+#include <string.h>
 #include <errno.h>
 #include "posixtest.h"
 
+static sem_t gate;
+
 static void *a_thread_func()
 {
+	if (sem_wait(&gate) != 0)
+		perror("sem_wait()");
 
 	pthread_exit(0);
 	return NULL;
@@ -36,7 +46,12 @@ int test_main(int argc PTS_ATTRIBUTE_UNUSED, char **argv PTS_ATTRIBUTE_UNUSED)
 {
 	pthread_t new_th;
 	pthread_attr_t new_attr;
-	int ret_val;
+	int join_ret, detach_ret;
+
+	if (sem_init(&gate, 0, 0) != 0) {
+		perror("sem_init()");
+		return PTS_UNRESOLVED;
+	}
 
 	/* Initialize attribute */
 	if (pthread_attr_init(&new_attr) != 0) {
@@ -57,19 +72,28 @@ int test_main(int argc PTS_ATTRIBUTE_UNUSED, char **argv PTS_ATTRIBUTE_UNUSED)
 		return PTS_UNRESOLVED;
 	}
 
-	/* If pthread_join() or pthread_detach fail, that means that the
-	 * test fails as well. */
-	ret_val = pthread_join(new_th, NULL);
+	/*
+	 * The thread cannot get past sem_wait() before the post below,
+	 * so it is alive and detached.
+	 */
+	join_ret = pthread_join(new_th, NULL);
+	detach_ret = pthread_detach(new_th);
 
-	if (ret_val != EINVAL) {
-		printf("Test FAILED\n");
+	if (sem_post(&gate) != 0) {
+		perror("sem_post()");
+		return PTS_UNRESOLVED;
+	}
+
+	/* Both calls must fail with EINVAL. */
+	if (join_ret != EINVAL) {
+		printf("Test FAILED: pthread_join() returned '%s', expected EINVAL\n",
+		       strerror(join_ret));
 		return PTS_FAIL;
 	}
 
-	ret_val = pthread_detach(new_th);
-
-	if (ret_val != EINVAL) {
-		printf("Test FAILED\n");
+	if (detach_ret != EINVAL) {
+		printf("Test FAILED: pthread_detach() returned '%s', expected EINVAL\n",
+		       strerror(detach_ret));
 		return PTS_FAIL;
 	}
 
