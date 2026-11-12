@@ -25,18 +25,30 @@
  * Steps:
  * 1.  Create a new thread that is non-joinable (i.e. detached state
  *     attribute is PTHREAD_CREATE_DETACHED.
+ *     The thread blocks until released.
  * 2.  Call pthread_join() in main.  It should return EINVAL.
  *     If not, the test fails.
+ * 3.  Release the thread.
+ *
+ * The thread must still be running while pthread_join() is called. Once a
+ * detached thread has exited its ID is no longer valid and the behavior of
+ * pthread_join() is then undefined.
  */
 
 #include <pthread.h>
+#include <semaphore.h>
 #include <stdio.h>
 #include <unistd.h>
 #include <errno.h>
 #include "posixtest.h"
 
+static sem_t gate;
+
 static void *a_thread_func()
 {
+	if (sem_wait(&gate) != 0)
+		perror("sem_wait()");
+
 	pthread_exit(0);
 	return NULL;
 }
@@ -47,6 +59,11 @@ int test_main(int argc PTS_ATTRIBUTE_UNUSED, char **argv PTS_ATTRIBUTE_UNUSED)
 	pthread_attr_t attr;
 	int ret;
 
+	if (sem_init(&gate, 0, 0) != 0) {
+		perror("sem_init()");
+		return PTS_UNRESOLVED;
+	}
+
 	pthread_attr_init(&attr);
 	pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
 
@@ -55,7 +72,17 @@ int test_main(int argc PTS_ATTRIBUTE_UNUSED, char **argv PTS_ATTRIBUTE_UNUSED)
 		return PTS_UNRESOLVED;
 	}
 
+	/*
+	 * The thread cannot get past sem_wait() before the post below,
+	 * so it is alive and detached.
+	 */
 	ret = pthread_join(new_th, NULL);
+
+	if (sem_post(&gate) != 0) {
+		perror("sem_post()");
+		return PTS_UNRESOLVED;
+	}
+
 	if (ret != EINVAL) {
 		printf("Test FAILED: Return code should be EINVAL, "
 		       "but is: %d instead.\n", ret);
