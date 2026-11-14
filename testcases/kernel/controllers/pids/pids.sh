@@ -32,10 +32,27 @@ OPTIONS
 EOF
 }
 
+wait_cgroup_empty()
+{
+	local delay=1000
+
+	while [ -n "$(cat "$1/$task_list" 2>/dev/null)" ]; do
+		if [ $delay -gt 4000000 ]; then
+			# tst_brk() only warns in cleanup(), so return after it
+			tst_brk TBROK "cgroup $1 is not empty"
+			return
+		fi
+		tst_sleep ${delay}us
+		delay=$((delay * 2))
+	done
+}
+
 cleanup()
 {
 	killall -9 pids_task2 >/dev/null 2>&1
 	killall -9 pids_task1 >/dev/null 2>&1
+
+	[ -n "$testpath" ] && wait_cgroup_empty "$testpath"
 
 	cgroup_cleanup
 }
@@ -83,6 +100,10 @@ stop_pids_tasks_path()
 		kill -9 $i 2>/dev/null
 		wait $i 2>/dev/null
 	done
+
+	# wait can't reap the orphaned pids_task1 children, so wait for them
+	# to leave the cgroup instead
+	wait_cgroup_empty "$path"
 }
 
 case1()
