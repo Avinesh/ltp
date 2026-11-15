@@ -32,10 +32,37 @@ OPTIONS
 EOF
 }
 
+debug_cgroup_procs()
+{
+	local pid
+
+	for pid in $(cat "$1/$task_list" 2>/dev/null); do
+		tst_res TINFO "DEBUG: $1 contains pid $pid ($(tr '\0' ' ' < /proc/$pid/cmdline 2>/dev/null)) $(awk '/^State:/{s=$2$3} /^PPid:/{p=$2} END{print "state=" s " ppid=" p}' /proc/$pid/status 2>/dev/null)"
+	done
+}
+
+debug_rmdir()
+{
+	rmdir "$1" && return
+
+	tst_res TINFO "DEBUG: rmdir $1 failed, cgroup.events: $(tr '\n' ' ' < "$1/cgroup.events" 2>/dev/null)"
+	if [ -n "$(cat "$1/$task_list" 2>/dev/null)" ]; then
+		debug_cgroup_procs "$1"
+	else
+		tst_res TINFO "DEBUG: $1 is already empty now, the task left after rmdir failed"
+	fi
+}
+
 cleanup()
 {
 	killall -9 pids_task2 >/dev/null 2>&1
 	killall -9 pids_task1 >/dev/null 2>&1
+
+	if [ -n "$testpath" ]; then
+		for d in "$testpath" "$testpath"/child*; do
+			[ -d "$d" ] && debug_cgroup_procs "$d"
+		done
+	fi
 
 	cgroup_cleanup
 }
@@ -238,7 +265,7 @@ case7()
 
 	for i in `seq 1 $subcgroup_num`; do
 		stop_pids_tasks_path $testpath/child$i
-		rmdir $testpath/child$i
+		debug_rmdir $testpath/child$i
 	done
 
 	stop_pids_tasks
@@ -270,7 +297,7 @@ case8()
 	fi
 
 	stop_pids_tasks_path $testpath/child
-	rmdir $testpath/child
+	debug_rmdir $testpath/child
 }
 
 case9()
@@ -332,7 +359,7 @@ case9()
 
 	for i in 1 2; do
 		stop_pids_tasks_path $testpath/child$i
-		rmdir $testpath/child$i
+		debug_rmdir $testpath/child$i
 	done
 	stop_pids_tasks
 }
