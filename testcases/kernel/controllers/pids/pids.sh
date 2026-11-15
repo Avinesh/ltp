@@ -35,16 +35,22 @@ EOF
 wait_cgroup_empty()
 {
 	local delay=1000
+	local waited=0
 
 	while [ -n "$(cat "$1/$task_list" 2>/dev/null)" ]; do
+		[ $waited -eq 0 ] && tst_res TINFO "DEBUG: $1 still has tasks: $(tr '\n' ' ' < "$1/$task_list" 2>/dev/null)- rmdir would have hit EBUSY without the wait"
 		if [ $delay -gt 4000000 ]; then
 			# tst_brk() only warns in cleanup(), so return after it
 			tst_brk TBROK "cgroup $1 is not empty"
 			return
 		fi
 		tst_sleep ${delay}us
+		waited=$((waited + delay))
 		delay=$((delay * 2))
 	done
+
+	[ $waited -gt 0 ] && tst_res TINFO "DEBUG: $1 became empty after waiting ${waited}us"
+	return 0
 }
 
 cleanup()
